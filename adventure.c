@@ -41,7 +41,6 @@ int main() {
 
     
     // exit with value 0
-    getchar();
     return 0;
 }
 
