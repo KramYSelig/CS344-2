@@ -20,7 +20,6 @@
  *   (display to the screen) for the user interface and communication.
  *
  *****************************************************************************/
-// included libraries
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -36,7 +35,7 @@ struct Room {
 
 struct Game {
 	struct Room roomList[7];			// room information for this game
-	char nameList[10][50];				// list of available names
+	const char *nameList[50];			// list of available names
 	int stepCount;						// tracks number of steps taken
 	int startRoomAssigned;				// tracks if start room is assigned
 	int endRoomAssigned;				// tracks if end room is assigned
@@ -74,8 +73,7 @@ void displayResults(struct Game *currentGame) {
     // display path message
     printf("YOUR PATH TO VICTORY WAS: \n");
     // Read path steps from file and display them in order
-    printf("Display steps from file here");
-	printf("%s", currentGame->nameList[0]);
+    printf("Display steps from file here\n");
 }
 
 /******************************************************************************
@@ -85,6 +83,16 @@ void displayResults(struct Game *currentGame) {
 void initGame(struct Game *currentGame) {
 	// initialize name list with 10 predefined options
 	currentGame->nameList[0] = "test";
+	currentGame->nameList[1] = "Let's make it happen!!!";
+	currentGame->nameList[2] = "test";
+	currentGame->nameList[3] = "test";
+	currentGame->nameList[4] = "test";
+	currentGame->nameList[5] = "test";
+	currentGame->nameList[6] = "test";
+	currentGame->nameList[7] = "test";
+	currentGame->nameList[8] = "test";
+	currentGame->nameList[9] = "test";
+
 	// initialize basic parameters
 	currentGame->stepCount = 0;				// tracks number of steps taken
 	currentGame->startRoomAssigned = 0;		// tracks if start room is assigned
