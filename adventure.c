@@ -22,24 +22,41 @@
  *****************************************************************************/
 // included libraries
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
+struct Room {
+	char name[50];						// label/name
+	char type[10];						// START_ROOM, END_ROOM, MID_ROOM
+	int numActiveConns;					// number of room's current connections
+	int connections[6];					// rooms that this room connects to
+};
+
+struct Game {
+	struct Room roomList[7];			// room information for this game
+	char nameList[10][50];				// list of available names
+	int stepCount;						// tracks number of steps taken
+	int startRoomAssigned;				// tracks if start room is assigned
+	int endRoomAssigned;				// tracks if end room is assigned
+};
+
+// initialize the game attributes and room values
+void initGame(struct Game *currentGame);
 // Display the congratulatory messages to the user
-void displayResults(int stepCount);
+void displayResults(struct Game *currentGame);
 
 int main() {
-    int stepCount = 0;
-
-    // create 7 room files, one room per file, in a directory called 
-    // gilesm.rooms.<process id>
-
-    // game commences, display user interface
-    //   - player begins in starting room
-    //   - game automatically ends in ending room
+	struct Game *currentGame;
+	currentGame = (struct Game *)malloc(sizeof(struct Game));
+	
+	// initialize game attributes, set room values, and save rooms to file
+	initGame(currentGame);
 
     // display congratulations, step count, and step history path to the user
-    displayResults(stepCount);
-
-    
+	displayResults(currentGame);
+ 
     // exit with value 0
     return 0;
 }
@@ -48,22 +65,28 @@ int main() {
  * Function Name: displayResults
  * Description: Display the congratulatory messages to the user including the
  *   total steps taken and the path traveled from start to finish.
- * Parameters:
- *   - stepCount: Integer that contains the number of steps user took from the
- *       starting room to the ending room
- * Return Type: void
- * Preconditions:
- *   - Step history file is available and readable in the appropriate 
- *       directory.
- * Postconditions: None
  *****************************************************************************/
-void displayResults(int stepCount) {
+void displayResults(struct Game *currentGame) {
     // display congratulations message
     printf("YOU HAVE FOUND THE END ROOM. CONGRATULATIONS!\n");
     // display number of steps taken
-    printf("YOU TOOK %i STEPS. ", stepCount);
+    printf("YOU TOOK %i STEPS. ", currentGame->stepCount);
     // display path message
     printf("YOUR PATH TO VICTORY WAS: \n");
     // Read path steps from file and display them in order
     printf("Display steps from file here");
+	printf("%s", currentGame->nameList[0]);
+}
+
+/******************************************************************************
+ * Function Name: initGame
+ * Description: Initialize the game includeing attributes and room information
+ *****************************************************************************/
+void initGame(struct Game *currentGame) {
+	// initialize name list with 10 predefined options
+	currentGame->nameList[0] = "test";
+	// initialize basic parameters
+	currentGame->stepCount = 0;				// tracks number of steps taken
+	currentGame->startRoomAssigned = 0;		// tracks if start room is assigned
+	currentGame->endRoomAssigned = 0;		// tracks if end room is assigned
 }
