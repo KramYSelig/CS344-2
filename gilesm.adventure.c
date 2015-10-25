@@ -45,31 +45,63 @@ struct Game {
 	char *dirPath;
 };
 
-// initialize the game attributes and room values
-void initGame(struct Game *currentGame);
+// assign room names, room connections, and save room files to directory
+void buildGame(struct Game *currentGame);
+// clean game structure memory
+void cleanGameData(struct Game *currentGame);
 // Display the congratulatory messages to the user
-void displayResults(struct Game *currentGame);
+void displayGameResults(struct Game *currentGame);
+// initialize the game attributes, room name list, and directory path
+void initGame(struct Game *currentGame);
+// allow player to play game until end room is reached
+void playGame(struct Game *currentGame);
 
 int main() {
 	struct Game *currentGame;
 	currentGame = (struct Game *)malloc(sizeof(struct Game));
 	
-	// initialize game attributes, set room values, and save rooms to file
+	// initialize the game attributes, room name list, and directory path
 	initGame(currentGame);
-
+	// assign room names, room connections, and save room files to directory
+	buildGame(currentGame);
+	// allow player to play game until end room is reached
+	playGame(currentGame);
     // display congratulations, step count, and step history path to the user
-	displayResults(currentGame);
- 
+	displayGameResults(currentGame);
+	// clean game structure memory
+	cleanGameData(currentGame); 
     // exit with value 0
     return 0;
 }
 
 /******************************************************************************
- * Function Name: displayResults
+ * Function Name: buildGame
+ * Description: Assign room names, room connections, and save room files to
+ *   directory.
+ *****************************************************************************/
+void buildGame(struct Game *currentGame) {
+	// create room file directory
+	
+	// create room files while assigning name, type, and connections
+	
+	// read room files into local game room structures
+}
+
+/******************************************************************************
+ * Function Name: cleanGameData
+ * Description: Clean game structure memory.
+ *****************************************************************************/
+void cleanGameData(struct Game *currentGame) {
+
+}
+
+
+/******************************************************************************
+ * Function Name: displayGameResults
  * Description: Display the congratulatory messages to the user including the
  *   total steps taken and the path traveled from start to finish.
  *****************************************************************************/
-void displayResults(struct Game *currentGame) {
+void displayGameResults(struct Game *currentGame) {
     // display congratulations message
     printf("YOU HAVE FOUND THE END ROOM. CONGRATULATIONS!\n");
     // display number of steps taken
@@ -82,7 +114,8 @@ void displayResults(struct Game *currentGame) {
 
 /******************************************************************************
  * Function Name: initGame
- * Description: Initialize the game includeing attributes and room information
+ * Description: Initialize the game attributes, room name list, and directory
+ *   path.
  *****************************************************************************/
 void initGame(struct Game *currentGame) {
 	char buffer[512];
@@ -109,11 +142,13 @@ void initGame(struct Game *currentGame) {
 	currentGame->processID = getpid();		// current process ID for program
 	sprintf(buffer,"gilesm.rooms.%d", currentGame->processID); 
 	currentGame->dirPath = buffer;	
-
-	//currentGame->dirPath = currentGame->processID;
-	// create room directory
-	//mkdir(currentGame->dirPath, 0775);
-
-
-	// read room files into local room structures
 }
+
+/******************************************************************************
+ * Function Name: playGame
+ * Description: Allow the player to play game until end room is reached.
+ *****************************************************************************/
+void playGame(struct Game *currentGame) {
+
+}
+
