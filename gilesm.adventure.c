@@ -26,6 +26,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
+#include <time.h>
 
 struct Room {
 	char name[50];						// label/name
@@ -42,7 +44,7 @@ struct Game {
 	int startRoomAssigned;				// tracks if start room is assigned
 	int endRoomAssigned;				// tracks if end room is assigned
 	int processID;
-	char *dirPath;
+	char dirPath[512];
 };
 
 // assign room names, room connections, and save room files to directory
@@ -80,9 +82,19 @@ int main() {
  *   directory.
  *****************************************************************************/
 void buildGame(struct Game *currentGame) {
+	int status,
+		i = 0;
+
+	srand (time(NULL));
+
 	// create room file directory
+	status = mkdir(currentGame->dirPath, 0775);
 	
 	// create room files while assigning name, type, and connections
+	for (i = 1; i <= 7; i++) {
+		printf("creating file %i\n", i);
+		printf("Random number between 3 and 6: %i\n", (rand() % 4) + 3);
+	}
 	
 	// read room files into local game room structures
 }
@@ -125,11 +137,11 @@ void initGame(struct Game *currentGame) {
 	currentGame->nameList[1] = "Lila's Cell";
 	currentGame->nameList[2] = "Mother's Secrect Office";
 	currentGame->nameList[3] = "Kitchen";
-	currentGame->nameList[4] = "Basement Torture Chamber";
+	currentGame->nameList[4] = "Old Torture Room";
 	currentGame->nameList[5] = "Rooftop Deck";
 	currentGame->nameList[6] = "Master Bedroom";
 	currentGame->nameList[7] = "Dark Closet";
-	currentGame->nameList[8] = "Basement Work Shop";
+	currentGame->nameList[8] = "New Torture Room";
 	currentGame->nameList[9] = "Dining Room";
 	currentGame->numNamesRemaining = 10;
 
@@ -141,7 +153,7 @@ void initGame(struct Game *currentGame) {
 	// gather current process id and build directory path for files
 	currentGame->processID = getpid();		// current process ID for program
 	sprintf(buffer,"gilesm.rooms.%d", currentGame->processID); 
-	currentGame->dirPath = buffer;	
+	strcpy(currentGame->dirPath, buffer);
 }
 
 /******************************************************************************
