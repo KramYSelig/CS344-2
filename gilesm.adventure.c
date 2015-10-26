@@ -38,8 +38,8 @@ struct Room {
 
 struct Game {
 	struct Room roomList[7];			// room information for this game
-	const char *nameList[50];			// list of available names
-	int numNamesRemaining;				// tracks names for random selection
+	char nameList[10][50];				// list of available names
+	int numNamesRemaining;				// number of names remaining in list
 	int stepCount;						// tracks number of steps taken
 	int startRoomAssigned;				// tracks if start room is assigned
 	int endRoomAssigned;				// tracks if end room is assigned
@@ -53,6 +53,8 @@ void buildGame(struct Game *currentGame);
 void cleanGameData(struct Game *currentGame);
 // Display the congratulatory messages to the user
 void displayGameResults(struct Game *currentGame);
+// Retrieve random name from names list and decrement number remaining by 1
+char * getRandomName(struct Game *currentGame);
 // initialize the game attributes, room name list, and directory path
 void initGame(struct Game *currentGame);
 // allow player to play game until end room is reached
@@ -82,9 +84,12 @@ int main() {
  *   directory.
  *****************************************************************************/
 void buildGame(struct Game *currentGame) {
-	int status,
-		i = 0;
+	int status,			// success/fail for directory and file creation
+		i = 0;			// iterator number for loops
+	// stores random name selection from list
+	char *roomName = malloc(sizeof(char) * 50); 		
 
+	// initialize seed for random number generator
 	srand (time(NULL));
 
 	// create room file directory
@@ -92,12 +97,51 @@ void buildGame(struct Game *currentGame) {
 	
 	// create room files while assigning name, type, and connections
 	for (i = 1; i <= 7; i++) {
+		// select random name from name list
+			strcpy(roomName, getRandomName(currentGame));
+			printf("test name: %s", roomName);
+		// calculate random number of connections assigned to this room
+			// generate random number between 3 and 6
+			// subtract number of connections this room already has
+		// add connections until assigned number of connections is reached
+			// randomly select a connection from list of rooms
+				// if room is not already assigned, assign the connection
+					// assign the reverse connection back to this room
+				// if room is already assigned, randomly select new connection
+					// assign the reverse connection back to this room
+
 		printf("creating file %i\n", i);
 		printf("Random number between 3 and 6: %i\n", (rand() % 4) + 3);
 	}
 	
 	// read room files into local game room structures
 }
+
+/******************************************************************************
+ * Function Name: getRandomName
+ * Description: Selects a random name from the game list, removes the name, and
+ *   updates the total number of names remaining.
+ *****************************************************************************/
+char * getRandomName(struct Game *currentGame) {
+	int i = 0,
+		randomNum = 0;
+	char *roomName = malloc(sizeof(char) * 50);
+
+	randomNum = rand() % currentGame->numNamesRemaining;
+	strcpy(roomName, currentGame->nameList[randomNum]);	
+	
+	for (i = randomNum; i < currentGame->numNamesRemaining; i++) {
+		strcpy(currentGame->nameList[i], currentGame->nameList[i + 1]);
+	}
+
+	currentGame->numNamesRemaining--;
+
+	printf("Rand num: %i\n", randomNum);
+	printf("num names rem: %i\n", currentGame->numNamesRemaining);
+
+	return roomName;
+}
+
 
 /******************************************************************************
  * Function Name: cleanGameData
@@ -133,22 +177,23 @@ void initGame(struct Game *currentGame) {
 	char buffer[512];
 
 	// initialize name list with 10 predefined options
-	currentGame->nameList[0] = "Lila's Room";
-	currentGame->nameList[1] = "Lila's Cell";
-	currentGame->nameList[2] = "Mother's Secrect Office";
-	currentGame->nameList[3] = "Kitchen";
-	currentGame->nameList[4] = "Old Torture Room";
-	currentGame->nameList[5] = "Rooftop Deck";
-	currentGame->nameList[6] = "Master Bedroom";
-	currentGame->nameList[7] = "Dark Closet";
-	currentGame->nameList[8] = "New Torture Room";
-	currentGame->nameList[9] = "Dining Room";
+	strcpy(currentGame->nameList[0], "Lila's Room");
+	strcpy(currentGame->nameList[1], "Lila's Cell");
+	strcpy(currentGame->nameList[2], "Mother's Secrect Office");
+	strcpy(currentGame->nameList[3], "Kitchen");
+	strcpy(currentGame->nameList[4], "Old Torture Room");
+	strcpy(currentGame->nameList[5], "Rooftop Deck");
+	strcpy(currentGame->nameList[6], "Master Bedroom");
+	strcpy(currentGame->nameList[7], "Dark Closet");
+	strcpy(currentGame->nameList[8], "New Torture Room");
+	strcpy(currentGame->nameList[9], "Dining Room");
 	currentGame->numNamesRemaining = 10;
 
 	// initialize basic parameters
-	currentGame->stepCount = 0;				// tracks number of steps taken
+	currentGame->stepCount = 0;				// number of steps taken
 	currentGame->startRoomAssigned = 0;		// tracks if start room is assigned
 	currentGame->endRoomAssigned = 0;		// tracks if end room is assigned
+	currentGame->numNamesRemaining = 10;	// number of names available
 	
 	// gather current process id and build directory path for files
 	currentGame->processID = getpid();		// current process ID for program
