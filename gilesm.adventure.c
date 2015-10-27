@@ -31,8 +31,8 @@
 
 struct Room {
 	char name[50];						// label/name
-	char type[10];						// START_ROOM, END_ROOM, MID_ROOM
-	int numActiveConns;					// number of room's current connections
+	char type[15];						// START_ROOM, END_ROOM, MID_ROOM
+	int numActiveConn;					// number of current connections
 	int connections[7];					// rooms that this room connects to
 };
 
@@ -41,18 +41,24 @@ struct Game {
 	char nameList[10][50];				// list of available names
 	int numNamesRemaining;				// number of names remaining in list
 	int stepCount;						// tracks number of steps taken
-	int startRoomAssigned;				// tracks if start room is assigned
-	int endRoomAssigned;				// tracks if end room is assigned
-	int processID;
-	char dirPath[512];
+	int processID;						// process ID of current game
+	char dirPath[512];					// path of directory for files
+	int startRoomIndex;					// room list index of starting room
+	int endRoomIndex;					// room list index of ending room
 };
 
 // takes a game structure, a room index, and adds a connection to that room
-void addRoomConnection(struct Game *currentGame, int roomIndex);
+void addRoomConn(struct Game *currentGame, int roomIndex);
 // assign room names, room connections, and save room files to directory
 void buildGame(struct Game *currentGame);
 // clean game structure memory
 void cleanGameData(struct Game *currentGame);
+// populate room files with description/information for a specified room number
+void writeRoomFile(struct Game *currentGame, int fileNumber);
+// read room file contents into local structure for a specified room number
+void readRoomFile(struct Game *currentGame, int fileNumber);
+// create a room file for the game with a specified file number.
+void createRoomFile(struct Game *currentGame, int fileNumber);
 // Display the congratulatory messages to the user
 void displayGameResults(struct Game *currentGame);
 // Retrieve random name from names list and decrement number remaining by 1
@@ -65,6 +71,8 @@ void playGame(struct Game *currentGame);
 int main() {
 	struct Game *currentGame;
 	currentGame = (struct Game *)malloc(sizeof(struct Game));
+	// initialize seed for random number generator
+	srand (time(NULL));
 	
 	// initialize the game attributes, room name list, and directory path
 	initGame(currentGame);
@@ -89,68 +97,136 @@ void buildGame(struct Game *currentGame) {
 	int status,					// success/fail for directory and file creation
 		i = 0,					// iterator for control structures
 		j = 0,					// iterator for control structures
-		numConnectionsToAdd;	// number of connections selected for this room
-
+		numConnToAdd;			// number of connections selected for this room
+	char *fileName = malloc(sizeof(char) * 10);
 	// stores random name selection from list
-	char *roomName = malloc(sizeof(char) * 50); 		
-
-	// initialize seed for random number generator
-	srand (time(NULL));
-
-	// create room file directory
-	status = mkdir(currentGame->dirPath, 0775);
-	// create room files while assigning name, type, and connections
+	char *roomName = malloc(sizeof(char) * 50);
+		
+	
+		// create room files while assigning name, type, and connections
 	for (i = 0; i < 7; i++) {
 		// select random name from name list
 		getRandomName(currentGame, roomName);
+		// save random name to room structure
 		strcpy(currentGame->roomList[i].name, roomName);
-		// calculate random number of connections assigned to this room
-		// generate random number between 3 and 6
-		numConnectionsToAdd = ((rand() % 4) + 3);
-		// subtract number of connections this room already has
-		numConnectionsToAdd -= currentGame->roomList[i].numActiveConns;
-		
-		// add connections until assigned number of connections is reached
-		for (j = 1; j <= numConnectionsToAdd; j++) {
-			addRoomConnection(currentGame, i);
+	
+		// add connections to this room until it has at least 3
+		while (currentGame->roomList[i].numActiveConn < 3) {
+			addRoomConn(currentGame, i);
 		}
+
+		// assign a room type based on random selections
+		if (currentGame->startRoomIndex == i) {
+			strcpy(currentGame->roomList[i].type, "START_ROOM");
+		} else if (currentGame->endRoomIndex == i) {
+			strcpy(currentGame->roomList[i].type, "END_ROOM");
+		} else {
+			strcpy(currentGame->roomList[i].type, "MID_ROOM");
+		}
+	}
+
 		
+	// populate room files with description/information
+	for (i = 0; i < 7; i++) {
+		//writeRoomFile(currentGame, i);
+	}
+
+	// read room file contents into local game structure
+	for (i = 0; i < 7; i++) {
+		//readRoomFile(currentGame, i);
 	}
 	
-	printf("\n");
-	for (i = 0; i < 7; i++) {
-		printf("Room Index Number: %i\n", i);
-		printf("Room Name: %s\n", currentGame->roomList[i].name);
-		printf("Number of connections: %i\n", currentGame->roomList[i].numActiveConns);
+	for (i = 0; i < 7; i++) {	
+		printf("Room Name: %i, %s\n", i, currentGame->roomList[i].name);
+		printf("Room Type: %s\n", currentGame->roomList[i].type);
+		printf("Number of connections: %i\n", currentGame->roomList[i].numActiveConn);
 		for (j = 0; j < 7; j++) {
 			if (currentGame->roomList[i].connections[j] == 1 && i != j) {
 				printf("Connection %i: %s\n", j, currentGame->roomList[j].name);
 			}
 		}
-		printf("\n");
 	}
-
-	// read room files into local game room structures
 }
 
 /******************************************************************************
- * Function Name: addRoomConnection
+ * Function Name: writeRoomFile
+ * Description: Populate room file with description/information for a specified
+ *   file number.
+ *****************************************************************************/
+void writeRoomFile(struct Game *currentGame, int fileNumber) {
+	char *fileName = malloc(sizeof(char) * 10);
+	int file_descriptor;
+	sprintf(fileName, "%s/file%d", currentGame->dirPath, fileNumber);
+	file_descriptor = open(fileName, O_RDONLY | O_CREAT, 0775);
+	if (file_descriptor < 0) {
+		printf("%i\n", file_descriptor);
+		printf("%s\n", fileName);
+		fprintf(stderr, "Could not open %s\n", fileName);
+		exit(1);
+	}
+
+	close(file_descriptor);
+}
+
+/******************************************************************************
+ * Function Name: readRoomFile
+ * Description: Read room file contents into local game structure for a
+ *   specified room number.
+ *****************************************************************************/
+void readRoomFile(struct Game *currentGame, int fileNumber) {
+	char *fileName = malloc(sizeof(char) * 10);
+	int file_descriptor;
+	sprintf(fileName, "%s/file%d", currentGame->dirPath, fileNumber);
+	file_descriptor = open(fileName, O_RDONLY | O_CREAT, 0775);
+	if (file_descriptor < 0) {
+		printf("%i\n", file_descriptor);
+		printf("%s\n", fileName);
+		fprintf(stderr, "Could not open %s\n", fileName);
+		exit(1);
+	}
+
+	close(file_descriptor);
+}
+
+/******************************************************************************
+ * Function Name: createRoomFile
+ * Description: Create a room file for the game with a specified file number.
+ *****************************************************************************/
+void createRoomFile(struct Game *currentGame, int fileNumber) {
+	char *fileName = malloc(sizeof(char) * 10);
+	int file_descriptor;
+	sprintf(fileName, "%s/file%d", currentGame->dirPath, fileNumber);
+	file_descriptor = open(fileName, O_RDONLY | O_CREAT, 0775);
+	if (file_descriptor < 0) {
+		printf("%i\n", file_descriptor);
+		printf("%s\n", fileName);
+		fprintf(stderr, "Could not open %s\n", fileName);
+		exit(1);
+	}
+
+	close(file_descriptor);
+}
+
+/******************************************************************************
+ * Function Name: addRoomConn
  * Description: Takes a game structure and a specfied room and adds to it a
  *   connection to another room.
  *****************************************************************************/
-void addRoomConnection(struct Game *currentGame, int roomIndex) {
+void addRoomConn(struct Game *currentGame, int roomIndex) {
 	int connectionEstablished = 0,
 		randomSelection = -1;
+	
 	while (connectionEstablished == 0) {
 		// generate random number between 0 and 6
 		randomSelection = (rand() % 7);
-		
 		if (currentGame->roomList[roomIndex].connections[randomSelection] == 0) {
-			currentGame->roomList[roomIndex].connections[randomSelection] = 1;
-			connectionEstablished = 1;
+				currentGame->roomList[roomIndex].connections[randomSelection] = 1;
+				currentGame->roomList[randomSelection].connections[roomIndex] = 1;
+				currentGame->roomList[roomIndex].numActiveConn++;
+				currentGame->roomList[randomSelection].numActiveConn++;
+				connectionEstablished = 1;
 		}
 	}
-	currentGame->roomList[roomIndex].numActiveConns++;
 }
 
 /******************************************************************************
@@ -206,7 +282,8 @@ void displayGameResults(struct Game *currentGame) {
  *   path.
  *****************************************************************************/
 void initGame(struct Game *currentGame) {
-	int i = 0;
+	int i = 0,
+		status;
 	char buffer[512];
 
 	// initialize name list with 10 predefined options
@@ -220,16 +297,27 @@ void initGame(struct Game *currentGame) {
 	strcpy(currentGame->nameList[7], "Dark Closet");
 	strcpy(currentGame->nameList[8], "New Torture Room");
 	strcpy(currentGame->nameList[9], "Dining Room");
+	// all names are remaining initially
 	currentGame->numNamesRemaining = 10;
 
 	// initialize basic parameters
 	currentGame->stepCount = 0;				// number of steps taken
-	currentGame->startRoomAssigned = 0;		// tracks if start room is assigned
-	currentGame->endRoomAssigned = 0;		// tracks if end room is assigned
 	currentGame->numNamesRemaining = 10;	// number of names available
+	currentGame->startRoomIndex = -1;		// start room index, -1 is bad
+	currentGame->endRoomIndex = -1;			// end room index, -1 is bad
+	
+	// randomly select starting room
+	currentGame->startRoomIndex = (rand() % 7);
+	// randomly select ending room ensuring it is different from start room
+	do {
+		currentGame->endRoomIndex = (rand() % 7);
+	} while (currentGame->startRoomIndex == currentGame->endRoomIndex);
+
+	// initialize each room active connections to 0, add connection to self
 	for (i = 0; i < 7; i++) {
-		currentGame->roomList[i].numActiveConns = 0;
-		// establish connection to self
+		// 0 initial active connections
+		currentGame->roomList[i].numActiveConn = 0;
+		// establish connection to self, does not add to active connections
 		currentGame->roomList[i].connections[i] = 1;
 	}
 
@@ -238,6 +326,12 @@ void initGame(struct Game *currentGame) {
 	currentGame->processID = getpid();		// current process ID for program
 	sprintf(buffer,"gilesm.rooms.%d", currentGame->processID); 
 	strcpy(currentGame->dirPath, buffer);
+	// create room file directory
+	status = mkdir(currentGame->dirPath, 0775);
+	// create room files with appropriate permissions
+	for (i = 0; i < 7; i++) {
+		createRoomFile(currentGame, i);
+	}
 }
 
 /******************************************************************************
@@ -247,4 +341,3 @@ void initGame(struct Game *currentGame) {
 void playGame(struct Game *currentGame) {
 
 }
-
