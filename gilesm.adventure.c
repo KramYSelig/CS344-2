@@ -51,14 +51,12 @@ struct Game {
 void addRoomConn(struct Game *currentGame, int roomIndex);
 // assign room names, room connections, and save room files to directory
 void buildGame(struct Game *currentGame);
-// clean game structure memory
-void cleanGameData(struct Game *currentGame);
 // populate room files with description/information for a specified room number
-void writeRoomFile(struct Game *currentGame, int fileNumber);
+void writeRoomFile(struct Game *currentGame, int roomNumber);
 // read room file contents into local structure for a specified room number
-void readRoomFile(struct Game *currentGame, int fileNumber);
+void readRoomFile(struct Game *currentGame, int roomNumber);
 // create a room file for the game with a specified file number.
-void createRoomFile(struct Game *currentGame, int fileNumber);
+void createRoomFile(struct Game *currentGame, int roomNumber);
 // Display the congratulatory messages to the user
 void displayGameResults(struct Game *currentGame);
 // Retrieve random name from names list and decrement number remaining by 1
@@ -82,8 +80,9 @@ int main() {
 	playGame(currentGame);
     // display congratulations, step count, and step history path to the user
 	displayGameResults(currentGame);
+	
 	// clean game structure memory
-	cleanGameData(currentGame); 
+	free(currentGame); 
     // exit with value 0
     return 0;
 }
@@ -128,24 +127,14 @@ void buildGame(struct Game *currentGame) {
 		
 	// populate room files with description/information
 	for (i = 0; i < 7; i++) {
-		//writeRoomFile(currentGame, i);
+		writeRoomFile(currentGame, i);
 	}
 
 	// read room file contents into local game structure
 	for (i = 0; i < 7; i++) {
-		//readRoomFile(currentGame, i);
+		readRoomFile(currentGame, i);
 	}
 	
-	for (i = 0; i < 7; i++) {	
-		printf("Room Name: %i, %s\n", i, currentGame->roomList[i].name);
-		printf("Room Type: %s\n", currentGame->roomList[i].type);
-		printf("Number of connections: %i\n", currentGame->roomList[i].numActiveConn);
-		for (j = 0; j < 7; j++) {
-			if (currentGame->roomList[i].connections[j] == 1 && i != j) {
-				printf("Connection %i: %s\n", j, currentGame->roomList[j].name);
-			}
-		}
-	}
 }
 
 /******************************************************************************
@@ -153,19 +142,48 @@ void buildGame(struct Game *currentGame) {
  * Description: Populate room file with description/information for a specified
  *   file number.
  *****************************************************************************/
-void writeRoomFile(struct Game *currentGame, int fileNumber) {
+void writeRoomFile(struct Game *currentGame, int roomNumber) {
 	char *fileName = malloc(sizeof(char) * 10);
+	char *roomName = malloc(sizeof(char) * 61);
+	char *roomType = malloc(sizeof(char) * 26);
+	char *connectionRoomName = malloc(sizeof(char) * 64);
 	int file_descriptor;
-	sprintf(fileName, "%s/file%d", currentGame->dirPath, fileNumber);
-	file_descriptor = open(fileName, O_RDONLY | O_CREAT, 0775);
-	if (file_descriptor < 0) {
-		printf("%i\n", file_descriptor);
-		printf("%s\n", fileName);
-		fprintf(stderr, "Could not open %s\n", fileName);
+	int i = 0;
+	int connectionNumber = 1;
+	ssize_t nwritten;
+
+	// concatenate text with data to be written to the file
+	sprintf(fileName, "%s/file%d", currentGame->dirPath, roomNumber);
+	sprintf(roomName, "ROOM NAME: %s\n", currentGame->roomList[roomNumber].name);
+	sprintf(roomType, "ROOM TYPE: %s\n", currentGame->roomList[roomNumber].type);
+
+	file_descriptor = open(fileName, O_RDWR);
+	if (file_descriptor == -1) {
+		fprintf(stderr, "Could not open %s to write to file.\n", fileName);
 		exit(1);
 	}
 
+	nwritten = write(file_descriptor, roomName, strlen(roomName));
+	for (i = 0; i < 7; i++) {
+		if (currentGame->roomList[roomNumber].connections[i] == 1 && roomNumber != i) {
+			sprintf(connectionRoomName, "CONNECTION %i: %s\n", connectionNumber, currentGame->roomList[i].name);
+			nwritten = write(file_descriptor, connectionRoomName, strlen(connectionRoomName));
+			connectionNumber++;
+		}
+	}
+
+	nwritten = write(file_descriptor, roomType, strlen(roomType));
+
 	close(file_descriptor);
+
+	fileName = NULL;
+	roomName = NULL;
+	roomType = NULL;
+	connectionRoomName = NULL;
+	free(fileName);
+	free(roomName);
+	free(roomType);
+	free(connectionRoomName);
 }
 
 /******************************************************************************
@@ -173,17 +191,31 @@ void writeRoomFile(struct Game *currentGame, int fileNumber) {
  * Description: Read room file contents into local game structure for a
  *   specified room number.
  *****************************************************************************/
-void readRoomFile(struct Game *currentGame, int fileNumber) {
+void readRoomFile(struct Game *currentGame, int roomNumber) {
+	char *buffer = malloc(sizeof(char) * 512);
 	char *fileName = malloc(sizeof(char) * 10);
+	char *roomName = malloc(sizeof(char) * 61);
+	char *roomType = malloc(sizeof(char) * 26);
+	char *connectionRoomName = malloc(sizeof(char) * 64);
 	int file_descriptor;
-	sprintf(fileName, "%s/file%d", currentGame->dirPath, fileNumber);
-	file_descriptor = open(fileName, O_RDONLY | O_CREAT, 0775);
+	int i = 0;
+	int readPos = 0;
+	ssize_t nwritten;
+	ssize_t nread;
+	size_t len = 0;
+	sprintf(fileName, "%s/file%d", currentGame->dirPath, roomNumber);
+	file_descriptor = open(fileName, O_RDONLY);
 	if (file_descriptor < 0) {
-		printf("%i\n", file_descriptor);
-		printf("%s\n", fileName);
-		fprintf(stderr, "Could not open %s\n", fileName);
+		fprintf(stderr, "Could not open %s to read the file.\n", fileName);
 		exit(1);
 	}
+	
+	nread = getline(&buffer, &len, file_descriptor);
+
+	//readPos = lseek(file_descriptor, 11, SEEK_SET);
+	//nread = read(file_descriptor, buffer, 512);
+	printf("\nNew File:\n\n");
+	printf("%s", buffer);
 
 	close(file_descriptor);
 }
@@ -192,19 +224,20 @@ void readRoomFile(struct Game *currentGame, int fileNumber) {
  * Function Name: createRoomFile
  * Description: Create a room file for the game with a specified file number.
  *****************************************************************************/
-void createRoomFile(struct Game *currentGame, int fileNumber) {
+void createRoomFile(struct Game *currentGame, int roomNumber) {
 	char *fileName = malloc(sizeof(char) * 10);
 	int file_descriptor;
-	sprintf(fileName, "%s/file%d", currentGame->dirPath, fileNumber);
+	sprintf(fileName, "%s/file%d", currentGame->dirPath, roomNumber);
 	file_descriptor = open(fileName, O_RDONLY | O_CREAT, 0775);
 	if (file_descriptor < 0) {
-		printf("%i\n", file_descriptor);
-		printf("%s\n", fileName);
-		fprintf(stderr, "Could not open %s\n", fileName);
+		fprintf(stderr, "Could not open %s to create the file.\n", fileName);
 		exit(1);
 	}
 
 	close(file_descriptor);
+
+	fileName = NULL;
+	free(fileName);
 }
 
 /******************************************************************************
@@ -250,16 +283,6 @@ void getRandomName(struct Game *currentGame, char *name) {
 	currentGame->numNamesRemaining--;
 }
 
-
-/******************************************************************************
- * Function Name: cleanGameData
- * Description: Clean game structure memory.
- *****************************************************************************/
-void cleanGameData(struct Game *currentGame) {
-
-}
-
-
 /******************************************************************************
  * Function Name: displayGameResults
  * Description: Display the congratulatory messages to the user including the
@@ -289,7 +312,7 @@ void initGame(struct Game *currentGame) {
 	// initialize name list with 10 predefined options
 	strcpy(currentGame->nameList[0], "Lila's Room");
 	strcpy(currentGame->nameList[1], "Lila's Cell");
-	strcpy(currentGame->nameList[2], "Mother's Secrect Office");
+	strcpy(currentGame->nameList[2], "Mother's Secret Office");
 	strcpy(currentGame->nameList[3], "Kitchen");
 	strcpy(currentGame->nameList[4], "Old Torture Room");
 	strcpy(currentGame->nameList[5], "Rooftop Deck");
