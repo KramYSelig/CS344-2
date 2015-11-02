@@ -45,6 +45,8 @@ struct Game {
 	char dirPath[512];					// path of directory for files
 	int startRoomIndex;					// room list index of starting room
 	int endRoomIndex;					// room list index of ending room
+	char stepList[10][50];				// list of room names for step history
+	int stepListSize;
 };
 
 // takes a game structure, a room index, and adds a connection to that room
@@ -80,10 +82,11 @@ int main() {
 	playGame(currentGame);
     // display congratulations, step count, and step history path to the user
 	displayGameResults(currentGame);
-	
-	// clean game structure memory
+	// clean game data
+	deleteTempFiles(currentGame);
 	free(currentGame); 
-    // exit with value 0
+    
+	// exit with value 0
     return 0;
 }
 
@@ -192,32 +195,84 @@ void writeRoomFile(struct Game *currentGame, int roomNumber) {
  *   specified room number.
  *****************************************************************************/
 void readRoomFile(struct Game *currentGame, int roomNumber) {
-	char *buffer = malloc(sizeof(char) * 512);
-	char *fileName = malloc(sizeof(char) * 10);
-	char *roomName = malloc(sizeof(char) * 61);
-	char *roomType = malloc(sizeof(char) * 26);
-	char *connectionRoomName = malloc(sizeof(char) * 64);
-	int file_descriptor;
-	int i = 0;
-	int readPos = 0;
-	ssize_t nwritten;
-	ssize_t nread;
-	size_t len = 0;
+	char buffer[512] = "",
+	     fileName[10] = "",
+	     roomName[50] = "",
+	     roomType[15] = "",
+	     connectionRoomName[50] = "",
+	     c,
+	     subBuff[10];
+	int count = 0,
+	    i = 0,
+	    index = 0;
 	sprintf(fileName, "%s/file%d", currentGame->dirPath, roomNumber);
-	file_descriptor = open(fileName, O_RDONLY);
-	if (file_descriptor < 0) {
-		fprintf(stderr, "Could not open %s to read the file.\n", fileName);
-		exit(1);
+	FILE *fp = fopen(fileName, "r");
+	
+	while ((c = fgetc(fp)) !=  EOF) {
+		if (c == '\n') {
+			buffer[count] = c;
+			for (i = 0; i < 10; i++) {
+				subBuff[i] = buffer[i];
+			}
+			if (strcmp(subBuff, "ROOM NAME:") == 0) {
+				index = 11;
+				count = 0;
+				while (count < 50) {
+					if (buffer[index] == '\n') {
+						buffer[index] = '\0';
+					} else {
+						roomName[count] = buffer[index];
+					}
+					count++;
+					index++;
+				}
+				strcpy(currentGame->roomList[roomNumber].name, roomName);
+			} else if (strcmp(subBuff, "CONNECTION") == 0) {
+				index = 14;
+				count = 0;
+				while (count < 50) {
+					if (buffer[index] == '\n') {
+						buffer[index] = '\0';
+					} else {
+						connectionRoomName[count] = buffer[index];
+					}
+					count++;
+					index++;
+				}
+				
+				for ( i = 0; i < 7; i++) {
+					if (strcmp(connectionRoomName, currentGame->roomList[i].name) == 0) {
+						currentGame->roomList[roomNumber].connections[i] = 1;
+					}
+				}
+				for (i = 0; i < 50; i++) {
+					connectionRoomName[i] = '\0';
+				}
+			} else if (strcmp(subBuff, "ROOM TYPE:") == 0) {
+				index = 11;
+				count = 0;
+				while (count < 15) {
+					if (buffer[index] == '\n') {
+						buffer[index] = '\0';
+					} else {
+						roomType[count] = buffer[index];
+					}
+					count++;
+					index++;
+				}
+				strcpy(currentGame->roomList[roomNumber].type, roomType);
+			}
+			for (i = 0; i < 512; i++) {
+				buffer[i] = '\0';
+			}
+			count = 0;
+		} else {
+			buffer[count] = c;
+			count++;
+		}
 	}
 	
-	nread = getline(&buffer, &len, file_descriptor);
-
-	//readPos = lseek(file_descriptor, 11, SEEK_SET);
-	//nread = read(file_descriptor, buffer, 512);
-	printf("\nNew File:\n\n");
-	printf("%s", buffer);
-
-	close(file_descriptor);
+	fclose(fp);
 }
 
 /******************************************************************************
@@ -308,7 +363,9 @@ void initGame(struct Game *currentGame) {
 	int i = 0,
 		status;
 	char buffer[512];
-
+	char *fileName = malloc(sizeof(char) * 25);
+	int file_descriptor;
+	
 	// initialize name list with 10 predefined options
 	strcpy(currentGame->nameList[0], "Lila's Room");
 	strcpy(currentGame->nameList[1], "Lila's Cell");
@@ -328,6 +385,7 @@ void initGame(struct Game *currentGame) {
 	currentGame->numNamesRemaining = 10;	// number of names available
 	currentGame->startRoomIndex = -1;		// start room index, -1 is bad
 	currentGame->endRoomIndex = -1;			// end room index, -1 is bad
+	currentGame->stepListSize = 10;			// starts with array of 10 strings
 	
 	// randomly select starting room
 	currentGame->startRoomIndex = (rand() % 7);
@@ -355,6 +413,16 @@ void initGame(struct Game *currentGame) {
 	for (i = 0; i < 7; i++) {
 		createRoomFile(currentGame, i);
 	}
+	// create step list temporary file
+	sprintf(fileName, "%s/stepHistory", currentGame->dirPath);
+	file_descriptor = open(fileName, O_RDONLY | O_CREAT, 0775);
+	if (file_descriptor < 0) {
+		fprintf(stderr, "Could not open %s to create the file.\n", fileName);
+		exit(1);
+	}
+	close(file_descriptor);
+	fileName = NULL;
+	free(fileName);
 }
 
 /******************************************************************************
@@ -362,5 +430,56 @@ void initGame(struct Game *currentGame) {
  * Description: Allow the player to play game until end room is reached.
  *****************************************************************************/
 void playGame(struct Game *currentGame) {
+	int currentLocation = currentGame->startRoomIndex,
+		i = 0,
+		count = 0,
+		success = 0,
+		file_descriptor;
+	char buffer[50];
+	char *fileName = malloc(sizeof(char) * 25);
+	char *historyName = malloc(sizeof(char) * 50);
+	ssize_t nwritten;
 
+	sprintf(fileName, "%s/stepHistory", currentGame->dirPath);
+	file_descriptor = open(fileName, O_RDWR);
+	if (file_descriptor == -1) {
+		fprintf(stderr, "Could not open %s to write to file.\n", fileName);
+		exit(1);
+	}
+
+	while (currentLocation != currentGame->endRoomIndex) {
+		count = 0;
+		printf("CURRENT LOCATION: %s\n", currentGame->roomList[currentLocation].name);
+		printf("POSSIBLE CONNECTIONS: ");
+		for (i = 0; i < 7; i++) {
+			if (currentGame->roomList[currentLocation].connections[i] == 1 && currentLocation != i) {
+				if (count == 0) {
+					printf("%s", currentGame->roomList[i].name);
+					count++;
+				} else {
+					printf(", %s", currentGame->roomList[i].name);
+				}
+			}
+		}
+		printf(".\n");
+		printf("WHERE TO? >");
+		fgets(buffer, 50, stdin);
+		buffer[strlen(buffer) - 1] = '\0';
+		for (i = 0; i < 7; i++) {
+			if (currentGame->roomList[currentLocation].connections[i] == 1 && currentLocation != i) {
+				if (strcmp(currentGame->roomList[i].name, buffer) == 0) {
+					currentLocation = i;
+					sprintf(historyName, "%s\n", currentGame->roomList[i].name);
+					nwritten = write(file_descriptor, historyName, strlen(historyName));
+					currentGame->stepCount++;
+					success = 1;
+					break;
+				}
+			}
+		}
+		if (success == 0) {
+			printf("HUH? I DON'T UNDERSTAND THAT ROOM. TRY AGAIN.\n");
+		}
+	}
+	close(file_descriptor);
 }
